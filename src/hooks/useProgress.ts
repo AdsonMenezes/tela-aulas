@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
-// Tipo para salvar a última aula
 type LastLesson = {
   subjectSlug: string;
   lessonId: number;
@@ -10,17 +9,15 @@ type LastLesson = {
 
 export function useProgress() {
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
-  const [lastLesson, setLastLesson] = useState<LastLesson>(null); // NOVO
+  const [lastLesson, setLastLesson] = useState<LastLesson>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // 1. Carrega aulas concluídas
     const savedProgress = localStorage.getItem("conectaedu-progress");
     if (savedProgress) {
       setCompletedLessons(JSON.parse(savedProgress));
     }
 
-    // 2. Carrega última aula vista (NOVO)
     const savedLast = localStorage.getItem("conectaedu-last-lesson");
     if (savedLast) {
       setLastLesson(JSON.parse(savedLast));
@@ -29,48 +26,57 @@ export function useProgress() {
     setIsLoaded(true);
   }, []);
 
-  // Salvar progresso
   const saveProgress = (newlist: string[]) => {
     setCompletedLessons(newlist);
     localStorage.setItem("conectaedu-progress", JSON.stringify(newlist));
   };
 
-  // --- FUNÇÃO NOVA: SALVAR ÚLTIMA AULA ---
-  const saveLastAccess = (subjectSlug: string, lessonId: number) => {
+  // --- CORREÇÃO: useCallback ADICIONADO NAS FUNÇÕES ABAIXO ---
+  
+  const saveLastAccess = useCallback((subjectSlug: string, lessonId: number) => {
     const data = { subjectSlug, lessonId };
     setLastLesson(data);
     localStorage.setItem("conectaedu-last-lesson", JSON.stringify(data));
-  };
+  }, []);
 
-  const markAsCompleted = (subjectSlug: string, lessonId: number) => {
+  const markAsCompleted = useCallback((subjectSlug: string, lessonId: number) => {
     const key = `${subjectSlug}-${lessonId}`;
-    if (!completedLessons.includes(key)) {
-      const newList = [...completedLessons, key];
-      saveProgress(newList);
-    }
-  };
+    // Precisamos usar o estado anterior (prev) para evitar dependência cíclica
+    setCompletedLessons((prev) => {
+      if (!prev.includes(key)) {
+        const newList = [...prev, key];
+        localStorage.setItem("conectaedu-progress", JSON.stringify(newList));
+        return newList;
+      }
+      return prev;
+    });
+  }, []);
 
-  const unmarkAsCompleted = (subjectSlug: string, lessonId: number) => {
+  const unmarkAsCompleted = useCallback((subjectSlug: string, lessonId: number) => {
     const key = `${subjectSlug}-${lessonId}`;
-    const newList = completedLessons.filter((item) => item !== key);
-    saveProgress(newList);
-  };
+    setCompletedLessons((prev) => {
+      const newList = prev.filter((item) => item !== key);
+      localStorage.setItem("conectaedu-progress", JSON.stringify(newList));
+      return newList;
+    });
+  }, []);
 
-  const isLessonCompleted = (subjectSlug: string, lessonId: number) => {
+  const isLessonCompleted = useCallback((subjectSlug: string, lessonId: number) => {
     return completedLessons.includes(`${subjectSlug}-${lessonId}`);
-  };
+  }, [completedLessons]);
 
-  const getSubjectProgress = (subjectSlug: string, totalLessons: number) => {
+  const getSubjectProgress = useCallback((subjectSlug: string, totalLessons: number) => {
     if (totalLessons === 0) return 0;
+    // Aqui usamos completedLessons direto da dependência
     const completedCount = completedLessons.filter(k => k.startsWith(`${subjectSlug}-`)).length;
     const percentage = (completedCount / totalLessons) * 100;
     return Math.min(Math.round(percentage), 100);
-  };
+  }, [completedLessons]);
 
   return {
     completedLessons,
-    lastLesson, // Exportando o estado
-    saveLastAccess, // Exportando a função
+    lastLesson,
+    saveLastAccess,
     markAsCompleted,
     unmarkAsCompleted,
     isLessonCompleted,

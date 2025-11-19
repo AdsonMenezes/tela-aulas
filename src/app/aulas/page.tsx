@@ -58,13 +58,20 @@ const Header = ({ searchTerm, setSearchTerm }: HeaderProps) => (
   </header>
 );
 
-// --- CARD CONTINUE ASSISTINDO (ATUALIZADO: ÍCONE + NOME DENTRO DA CAIXA) ---
+// --- CARD CONTINUE ASSISTINDO (CORRIGIDO COM TIPAGEM SEGURA) ---
 const ContinueWatchingCard = () => {
   const { lastLesson, isLoaded, getSubjectProgress } = useProgress();
   
-  const [cardData, setCardData] = useState({
+  // CORREÇÃO IMPORTANTE: Definindo o tipo do estado para aceitar componentes React (Ícones)
+  const [cardData, setCardData] = useState<{
+    title: string;
+    subjectName: string;
+    progress: number;
+    link: string;
+    Icon: React.ElementType; 
+  }>({
     title: "Nenhuma aula em andamento",
-    subjectName: "Geral", // Nome padrão
+    subjectName: "Comece sua jornada",
     progress: 0,
     link: "/aulas/matematica",
     Icon: Play
@@ -84,7 +91,7 @@ const ContinueWatchingCard = () => {
         if (aula) {
           setCardData({
             title: aula.title,
-            subjectName: materia.title, // Nome da matéria para o card cinza
+            subjectName: materia.title, 
             progress: realProgress,
             link: `/aulas/${slug}`,
             Icon: MatIcon
